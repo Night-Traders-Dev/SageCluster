@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SageCluster Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <script>
+        tailwind.config = { darkMode: 'class', theme: { extend: { colors: { slate: { 850: '#151f32' } } } } };
+    </script>
+    <style>
+        .data-transition { transition: all 0.3s ease; }
+        .node-card { cursor: pointer; }
+        .node-details { max-height: 0; overflow: hidden; transition: max-height 0.4s ease, opacity 0.3s ease; opacity: 0; }
+        .node-details.open { max-height: 600px; opacity: 1; }
+        .expand-icon { transition: transform 0.3s ease; }
+        .expand-icon.rotated { transform: rotate(180deg); }
+        .clickable-card { cursor: pointer; }
+        .graph-overlay { display: none; position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); align-items: center; justify-content: center; padding: 1rem; }
+        .graph-overlay.open { display: flex; }
+        .nav-btn { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 12px; border-radius: 8px; color: #64748b; transition: all 0.2s; font-size: 10px; min-width: 56px; background: transparent; border: none; cursor: pointer; }
+        .nav-btn:hover { color: #cbd5e1; background: rgba(255,255,255,0.05); }
+        .nav-btn.active { color: #10b981; background: rgba(16,185,129,0.1); }
+        .nav-btn i { font-size: 20px; }
+        .spinner { width: 20px; height: 20px; border: 2px solid #334155; border-top-color: #10b981; border-radius: 50%; animation: spin 0.8s linear infinite; display: inline-block; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-300 font-sans min-h-screen flex flex-col" style="padding-bottom:72px">
+
+    <header class="bg-slate-800 border-b border-slate-700 shadow-sm sticky top-0 z-10">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="p-2 bg-indigo-500/10 rounded-lg">
+                    <i class="ph ph-hard-drives text-2xl text-indigo-400"></i>
+                </div>
+                <h1 class="text-xl font-bold text-white tracking-wide">SageCluster</h1>
+            </div>
+            <div class="flex items-center space-x-2 text-sm text-slate-400">
+                <i class="ph ph-clock text-lg"></i>
+                <span id="last-updated">Waiting for data...</span>
+                <span id="loading-spinner" class="spinner ml-2" style="display:none"></span>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full space-y-8">
+        <div>
+            <h2 class="text-sm uppercase tracking-wider text-slate-400 font-semibold mb-4">Cluster Overview</h2>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="bg-slate-800 rounded-xl p-5 border border-slate-700/50 shadow-lg">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="text-xs text-slate-400 font-medium uppercase tracking-wider">CPU Cores</h3>
+                        <i class="ph ph-cpu text-lg text-blue-400"></i>
+                    </div>
+                    <p class="text-2xl font-bold text-white data-transition" id="cluster-cpu">-</p>
+                </div>
+                <div class="bg-slate-800 rounded-xl p-5 border border-slate-700/50 shadow-lg">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="text-xs text-slate-400 font-medium uppercase tracking-wider">Memory</h3>
+                        <i class="ph ph-memory text-lg text-purple-400"></i>
+                    </div>
+                    <p class="text-2xl font-bold text-white data-transition" id="cluster-mem-total">-</p>
+                </div>
+                <div id="mem-card" class="clickable-card bg-slate-800 rounded-xl p-5 border border-slate-700/50 shadow-lg hover:border-slate-600 transition-all">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="text-xs text-slate-400 font-medium uppercase tracking-wider">Mem Used</h3>
+                        <i class="ph ph-chart-line-up text-lg text-emerald-400"></i>
+                    </div>
+                    <p class="text-2xl font-bold text-white data-transition" id="cluster-mem-used">-</p>
+                    <div class="w-full bg-slate-700 rounded-full h-1.5 mt-3 overflow-hidden">
+                        <div id="cluster-mem-bar" class="bg-emerald-500 h-1.5 rounded-full data-transition" style="width:0%"></div>
+                    </div>
+                </div>
+                <div class="bg-slate-800 rounded-xl p-5 border border-slate-700/50 shadow-lg">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="text-xs text-slate-400 font-medium uppercase tracking-wider">Swap</h3>
+                        <i class="ph ph-swap text-lg text-cyan-400"></i>
+                    </div>
+                    <p class="text-2xl font-bold text-white data-transition" id="cluster-swap">-</p>
+                </div>
+            </div>
+        </div>
+
+        <div>
+            <h2 class="text-sm uppercase tracking-wider text-slate-400 font-semibold mb-4">Node Status</h2>
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6" id="nodes-container"></div>
+        </div>
+    </main>
+
+    <nav class="fixed bottom-0 left-0 right-0 z-40 backdrop-blur border-t border-slate-700/50" style="background:#0f172ae8">
+        <div class="max-w-4xl mx-auto flex items-center justify-center gap-1 px-2 py-2 overflow-x-auto">
+            <button class="nav-btn active" data-metric="memory"><i class="ph ph-chart-line-up"></i><span>Memory</span></button>
+            <button class="nav-btn" data-metric="cpu"><i class="ph ph-cpu"></i><span>CPU %</span></button>
+            <button class="nav-btn" data-metric="temp"><i class="ph ph-thermometer"></i><span>Temp</span></button>
+            <button class="nav-btn" data-metric="load"><i class="ph ph-chart-bar"></i><span>Load</span></button>
+            <button class="nav-btn" data-metric="network"><i class="ph ph-wifi-high"></i><span>Network</span></button>
+            <button class="nav-btn" data-metric="disk"><i class="ph ph-hard-drives"></i><span>Disk I/O</span></button>
+            <button class="nav-btn" data-metric="swap"><i class="ph ph-swap"></i><span>Swap</span></button>
+            <button class="nav-btn" data-metric="per_node_mem"><i class="ph ph-memory"></i><span>Node Mem</span></button>
+        </div>
+    </nav>
+
+    <div id="graph-overlay" class="graph-overlay" onclick="closeOverlay()">
+        <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-2xl w-full max-w-3xl p-6" onclick="event.stopPropagation()">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-white flex items-center space-x-2">
+                    <i id="overlay-icon" class="ph ph-chart-line-up" style="color:#10b981"></i>
+                    <span id="overlay-title">Memory Usage Over Time</span>
+                </h3>
+                <button onclick="closeOverlay()" class="p-2 rounded-lg hover:bg-slate-700 text-slate-400 hover:text-white transition-colors">
+                    <i class="ph ph-x text-xl"></i>
+                </button>
+            </div>
+            <div style="position:relative;height:300px">
+                <canvas id="main-chart"></canvas>
+            </div>
+            <p id="overlay-unit" class="text-xs text-slate-500 mt-2 text-right"></p>
+        </div>
+    </div>
+
+    <script src="/static/js/history.js"></script>
+    <script src="/static/js/nodes.js"></script>
+    <script src="/static/js/charts.js"></script>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

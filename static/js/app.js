@@ -1,0 +1,93 @@
+let nodesRendered = false;
+let fetching = false;
+let prevNet = {};
+let prevDisk = {};
+let prevTimestamp = 0;
+
+function formatTime(unixTime) {
+    return new Date(unixTime * 1000).toLocaleTimeString([], { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
+async function fetchClusterStatus() {
+    if (fetching) return;
+    fetching = true;
+    const spinner = document.getElementById('loading-spinner');
+    spinner.style.display = 'inline-block';
+    try {
+        const r = await fetch('/api/status');
+        if (!r.ok) throw Error('bad response');
+        const d = await r.json();
+        spinner.style.display = 'none';
+
+        document.getElementById('last-updated').textContent = 'Last updated: ' + formatTime(d.timestamp);
+        document.getElementById('last-updated').classList.remove('text-red-400');
+
+        const totalMem = d.cluster.total_mem_mb;
+        const usedMem = d.cluster.used_mem_mb;
+        const memPct = totalMem > 0 ? usedMem / totalMem * 100 : 0;
+
+        document.getElementById('cluster-cpu').textContent = d.cluster.total_cpu;
+        document.getElementById('cluster-mem-total').textContent = totalMem.toLocaleString() + ' MB';
+        document.getElementById('cluster-mem-used').textContent = usedMem.toLocaleString();
+        document.getElementById('cluster-swap').textContent = d.cluster.swap_used_mb ? d.cluster.swap_used_mb + ' MB' : '0 MB';
+
+        const memBar = document.getElementById('cluster-mem-bar');
+        memBar.style.width = memPct + '%';
+        memBar.className = (memPct > 90 ? 'bg-red-500' : memPct > 75 ? 'bg-amber-500' : 'bg-emerald-500') + ' h-1.5 rounded-full data-transition';
+
+        pushHistory('memory', usedMem);
+        pushHistory('swap', d.cluster.swap_used_mb || 0);
+
+        const now = Date.now();
+        const dt = prevTimestamp ? (now - prevTimestamp) / 1000 : 5;
+        prevTimestamp = now;
+
+        for (const [id, nd] of Object.entries(d.nodes)) {
+            if (!nd.cpus) continue;
+            pushHistory('temp', Math.round(parseInt(nd.cpu_temp || 0) / 1000 * 10) / 10, id);
+            pushHistory('load', parseFloat(nd.load?.split(' ')[0]) || 0, id);
+            const netVal = parseInt(nd.net?.split(' ')[0]) || 0;
+            if (prevNet[id] !== undefined && dt > 0) pushHistory('network', Math.round(Math.max(0, netVal - prevNet[id]) / dt), id);
+            prevNet[id] = netVal;
+            const diskVal = parseInt(nd.disk_io?.split(' ')[1]) || 0;
+            if (prevDisk[id] !== undefined && dt > 0) pushHistory('disk', Math.round(Math.max(0, diskVal - prevDisk[id]) / dt), id);
+            prevDisk[id] = diskVal;
+            const nm = parseMem(nd.mem);
+            pushHistory('per_node_mem', nm.used, id);
+            if (nd.cpu_usage) pushHistory('cpu', parseFloat(nd.cpu_usage), id);
+        }
+        saveHistory();
+
+        if (chart && document.getElementById('graph-overlay').classList.contains('open')) updateChart();
+
+        const container = document.getElementById('nodes-container');
+        if (!nodesRendered) {
+            const html = [];
+            for (const [id, nd] of Object.entries(d.nodes)) html.push(createNodeCardHTML(id, nd));
+            container.innerHTML = html.join('');
+            nodesRendered = true;
+            if (expandedNode) setExpandedSilent(expandedNode);
+        } else {
+            for (const [id, nd] of Object.entries(d.nodes)) updateNodeCard(id, nd);
+        }
+    } catch (e) {
+        console.error('fetch error:', e);
+        document.getElementById('last-updated').textContent = 'Connection lost. Retrying...';
+        document.getElementById('last-updated').classList.add('text-red-400');
+        document.getElementById('loading-spinner').style.display = 'none';
+    } finally {
+        fetching = false;
+    }
+}
+
+function init() {
+    document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.addEventListener('click', () => openOverlay(btn.dataset.metric));
+    });
+    document.getElementById('mem-card').addEventListener('click', () => openOverlay('memory'));
+    document.getElementById('graph-overlay').addEventListener('click', closeOverlay);
+    fetchClusterStatus();
+    setInterval(fetchClusterStatus, 5000);
+}
+
+document.addEventListener('DOMContentLoaded', init);
