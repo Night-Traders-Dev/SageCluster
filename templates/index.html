@@ -21,15 +21,34 @@
         .clickable-card { cursor: pointer; }
         .graph-overlay { display: none; position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); align-items: center; justify-content: center; padding: 1rem; }
         .graph-overlay.open { display: flex; }
+        .settings-panel { display: none; position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); align-items: center; justify-content: center; padding: 1rem; }
+        .settings-panel.open { display: flex; }
         .nav-btn { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 12px; border-radius: 8px; color: #64748b; transition: all 0.2s; font-size: 10px; min-width: 56px; background: transparent; border: none; cursor: pointer; }
         .nav-btn:hover { color: #cbd5e1; background: rgba(255,255,255,0.05); }
         .nav-btn.active { color: #10b981; background: rgba(16,185,129,0.1); }
         .nav-btn i { font-size: 20px; }
         .spinner { width: 20px; height: 20px; border: 2px solid #334155; border-top-color: #10b981; border-radius: 50%; animation: spin 0.8s linear infinite; display: inline-block; }
         @keyframes spin { to { transform: rotate(360deg); } }
+        input, select, textarea { background: #1e293b; border: 1px solid #334155; color: #e2e8f0; border-radius: 8px; padding: 8px 12px; font-size: 13px; width: 100%; }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: #10b981; }
+        label { display: block; font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+        .setting-section { background: #1e293b; border-radius: 12px; padding: 16px; margin-bottom: 16px; border: 1px solid #334155; }
+        .setting-section h4 { font-size: 13px; font-weight: 600; color: #e2e8f0; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+        .btn { padding: 8px 20px; border-radius: 8px; font-size: 13px; font-weight: 500; border: none; cursor: pointer; transition: all 0.2s; }
+        .btn-primary { background: #10b981; color: white; }
+        .btn-primary:hover { background: #059669; }
+        .btn-danger { background: #ef4444; color: white; }
+        .btn-danger:hover { background: #dc2626; }
+        .btn-sm { padding: 4px 12px; font-size: 11px; }
+        .tag { display: inline-flex; align-items: center; gap: 4px; background: #334155; padding: 2px 8px; border-radius: 4px; font-size: 11px; color: #cbd5e1; margin: 2px; }
+        .tag .remove { cursor: pointer; color: #ef4444; font-weight: bold; }
+        .toast { position: fixed; top: 20px; right: 20px; z-index: 100; background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 12px 20px; color: #e2e8f0; font-size: 13px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); display: none; }
+        .toast.show { display: block; }
     </style>
 </head>
 <body class="bg-slate-900 text-slate-300 font-sans min-h-screen flex flex-col" style="padding-bottom:72px">
+
+    <div id="toast" class="toast"></div>
 
     <header class="bg-slate-800 border-b border-slate-700 shadow-sm sticky top-0 z-10">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
@@ -39,7 +58,10 @@
                 </div>
                 <h1 class="text-xl font-bold text-white tracking-wide">SageCluster</h1>
             </div>
-            <div class="flex items-center space-x-2 text-sm text-slate-400">
+            <div class="flex items-center space-x-3 text-sm text-slate-400">
+                <button onclick="openSettings()" class="p-2 rounded-lg hover:bg-slate-700 hover:text-white transition-colors" title="Settings">
+                    <i class="ph ph-gear-six text-xl"></i>
+                </button>
                 <i class="ph ph-clock text-lg"></i>
                 <span id="last-updated">Waiting for data...</span>
                 <span id="loading-spinner" class="spinner ml-2" style="display:none"></span>
@@ -87,7 +109,7 @@
 
         <div>
             <h2 class="text-sm uppercase tracking-wider text-slate-400 font-semibold mb-4">Node Status</h2>
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6" id="nodes-container"></div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6" id="nodes-container"></div>
         </div>
     </main>
 
@@ -97,10 +119,18 @@
             <button class="nav-btn" data-metric="cpu"><i class="ph ph-cpu"></i><span>CPU %</span></button>
             <button class="nav-btn" data-metric="temp"><i class="ph ph-thermometer"></i><span>Temp</span></button>
             <button class="nav-btn" data-metric="load"><i class="ph ph-chart-bar"></i><span>Load</span></button>
-            <button class="nav-btn" data-metric="network"><i class="ph ph-wifi-high"></i><span>Network</span></button>
-            <button class="nav-btn" data-metric="disk"><i class="ph ph-hard-drives"></i><span>Disk I/O</span></button>
+            <button class="nav-btn" data-metric="network"><i class="ph ph-wifi-high"></i><span>Net RX</span></button>
+            <button class="nav-btn" data-metric="network_tx"><i class="ph ph-wifi-high" style="color:#f472b6"></i><span>Net TX</span></button>
+            <button class="nav-btn" data-metric="disk"><i class="ph ph-hard-drives"></i><span>Disk Wr</span></button>
+            <button class="nav-btn" data-metric="disk_read"><i class="ph ph-hard-drives" style="color:#34d399"></i><span>Disk Rd</span></button>
             <button class="nav-btn" data-metric="swap"><i class="ph ph-swap"></i><span>Swap</span></button>
             <button class="nav-btn" data-metric="per_node_mem"><i class="ph ph-memory"></i><span>Node Mem</span></button>
+            <button class="nav-btn" data-metric="watchdog" style="color:#38bdf8"><i class="ph ph-shield-check"></i><span>Watchdog</span></button>
+            <button class="nav-btn" data-metric="pihole" style="color:#f59e0b"><i class="ph ph-eye-slash"></i><span>Pi-hole</span></button>
+            <button class="nav-btn" data-metric="nfs" style="color:#10b981"><i class="ph ph-folder"></i><span>NFS</span></button>
+            <button class="nav-btn" data-metric="prometheus" style="color:#e74c3c"><i class="ph ph-chart-bar"></i><span>Prom</span></button>
+            <button class="nav-btn" data-metric="grafana" style="color:#f39c12"><i class="ph ph-graph"></i><span>Grafana</span></button>
+            <button class="nav-btn" data-metric="wireguard" style="color:#3498db"><i class="ph ph-shield"></i><span>WG</span></button>
         </div>
     </nav>
 
@@ -115,16 +145,39 @@
                     <i class="ph ph-x text-xl"></i>
                 </button>
             </div>
-            <div style="position:relative;height:300px">
+            <div id="chart-area" style="position:relative;height:300px">
                 <canvas id="main-chart"></canvas>
             </div>
+            <div id="log-area" style="display:none;height:300px;overflow-y:auto">
+                <pre id="log-content" class="text-xs text-slate-300 font-mono leading-relaxed whitespace-pre-wrap"></pre>
+            </div>
             <p id="overlay-unit" class="text-xs text-slate-500 mt-2 text-right"></p>
+        </div>
+    </div>
+
+    <div id="settings-panel" class="settings-panel" onclick="closeSettings()">
+        <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-y-auto p-6" onclick="event.stopPropagation()">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-lg font-semibold text-white flex items-center space-x-2">
+                    <i class="ph ph-gear-six text-emerald-400"></i>
+                    <span>Cluster Settings</span>
+                </h3>
+                <button onclick="closeSettings()" class="p-2 rounded-lg hover:bg-slate-700 text-slate-400 hover:text-white transition-colors">
+                    <i class="ph ph-x text-xl"></i>
+                </button>
+            </div>
+            <div id="settings-content"><div class="text-center text-slate-500 py-8"><span class="spinner"></span> Loading...</div></div>
+            <div class="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-slate-700">
+                <button onclick="saveSettings()" class="btn btn-primary"><i class="ph ph-floppy-disk"></i> Save Settings</button>
+                <button onclick="applySettings()" class="btn" style="background:#6366f1;color:white"><i class="ph ph-play"></i> Apply Now</button>
+            </div>
         </div>
     </div>
 
     <script src="/static/js/history.js"></script>
     <script src="/static/js/nodes.js"></script>
     <script src="/static/js/charts.js"></script>
+    <script src="/static/js/settings.js"></script>
     <script src="/static/js/app.js"></script>
 </body>
 </html>

@@ -1,0 +1,74 @@
+{
+  "dashboard": {
+    "poll_interval": 5,
+    "history_points": 500
+  },
+  "watchdog": {
+    "enabled": true,
+    "check_interval": 60,
+    "ram_threshold": 20,
+    "nodes": [
+      "orangepi",
+      "pi4",
+      "pi2",
+      "licheerv"
+    ]
+  },
+  "pihole": {
+    "upstream_dns_1": "1.1.1.1",
+    "upstream_dns_2": "8.8.8.8"
+  },
+  "nfs": {
+    "exports": [
+      {
+        "path": "/mnt/storage/backup",
+        "networks": [
+          "10.42.0.0/24",
+          "192.168.254.0/24"
+        ]
+      },
+      {
+        "path": "/mnt/storage/crossbuild",
+        "networks": [
+          "10.42.0.0/24",
+          "192.168.254.0/24"
+        ]
+      }
+    ]
+  },
+  "prometheus": {
+    "scrape_interval": 15,
+    "scrape_targets": [
+      "localhost:9090",
+      "localhost:9100",
+      "10.42.0.1:9100",
+      "10.42.1.109:9100",
+      "192.168.254.25:9100"
+    ]
+  },
+  "wireguard": {
+    "peers": []
+  },
+  "nodes": {
+    "orangepi": {
+      "host": "localhost",
+      "user": "",
+      "sudo_password": "jdy@123"
+    },
+    "pi4": {
+      "host": "10.42.0.141",
+      "user": "ubuntu",
+      "sudo_password": "jdy@123"
+    },
+    "pi2": {
+      "host": "10.42.1.109",
+      "user": "evelyn",
+      "sudo_password": ""
+    },
+    "licheerv": {
+      "host": "192.168.254.25",
+      "user": "root",
+      "sudo_password": "jdy@123"
+    }
+  }
+}

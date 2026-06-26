@@ -29,7 +29,9 @@ async function fetchClusterStatus() {
         document.getElementById('cluster-cpu').textContent = d.cluster.total_cpu;
         document.getElementById('cluster-mem-total').textContent = totalMem.toLocaleString() + ' MB';
         document.getElementById('cluster-mem-used').textContent = usedMem.toLocaleString();
-        document.getElementById('cluster-swap').textContent = d.cluster.swap_used_mb ? d.cluster.swap_used_mb + ' MB' : '0 MB';
+        const swapTotal = d.cluster.swap_total_mb || 0;
+        const swapUsed = d.cluster.swap_used_mb || 0;
+        document.getElementById('cluster-swap').textContent = swapTotal ? swapUsed + ' / ' + swapTotal + ' MB' : '0 MB';
 
         const memBar = document.getElementById('cluster-mem-bar');
         memBar.style.width = memPct + '%';
@@ -46,12 +48,18 @@ async function fetchClusterStatus() {
             if (!nd.cpus) continue;
             pushHistory('temp', Math.round(parseInt(nd.cpu_temp || 0) / 1000 * 10) / 10, id);
             pushHistory('load', parseFloat(nd.load?.split(' ')[0]) || 0, id);
-            const netVal = parseInt(nd.net?.split(' ')[0]) || 0;
-            if (prevNet[id] !== undefined && dt > 0) pushHistory('network', Math.round(Math.max(0, netVal - prevNet[id]) / dt), id);
-            prevNet[id] = netVal;
-            const diskVal = parseInt(nd.disk_io?.split(' ')[1]) || 0;
-            if (prevDisk[id] !== undefined && dt > 0) pushHistory('disk', Math.round(Math.max(0, diskVal - prevDisk[id]) / dt), id);
-            prevDisk[id] = diskVal;
+            const netRx = parseInt(nd.net?.split(' ')[0]) || 0;
+            const netTx = parseInt(nd.net?.split(' ')[1]) || 0;
+            if (prevNet[id] !== undefined && dt > 0) pushHistory('network', Math.round(Math.max(0, netRx - prevNet[id]) / dt), id);
+            if (prevNetTx[id] !== undefined && dt > 0) pushHistory('network_tx', Math.round(Math.max(0, netTx - prevNetTx[id]) / dt), id);
+            prevNet[id] = netRx;
+            prevNetTx[id] = netTx;
+            const diskWr = parseInt(nd.disk_io?.split(' ')[1]) || 0;
+            const diskRd = parseInt(nd.disk_io?.split(' ')[0]) || 0;
+            if (prevDisk[id] !== undefined && dt > 0) pushHistory('disk', Math.round(Math.max(0, diskWr - prevDisk[id]) / dt), id);
+            if (prevDiskRead[id] !== undefined && dt > 0) pushHistory('disk_read', Math.round(Math.max(0, diskRd - prevDiskRead[id]) / dt), id);
+            prevDisk[id] = diskWr;
+            prevDiskRead[id] = diskRd;
             const nm = parseMem(nd.mem);
             pushHistory('per_node_mem', nm.used, id);
             if (nd.cpu_usage) pushHistory('cpu', parseFloat(nd.cpu_usage), id);
@@ -88,6 +96,9 @@ function init() {
     document.getElementById('graph-overlay').addEventListener('click', closeOverlay);
     fetchClusterStatus();
     setInterval(fetchClusterStatus, 5000);
+    setInterval(() => {
+        if (LOG_METRICS[currentMetric]) fetchLog(currentMetric);
+    }, 30000);
 }
 
 document.addEventListener('DOMContentLoaded', init);

@@ -2,6 +2,7 @@ const NODE_ICONS = {
     orangepi: '<i class="fa-brands fa-linux text-xl text-yellow-500"></i>',
     pi4: '<i class="fa-brands fa-ubuntu text-xl text-[#E95420]"></i>',
     pi2: '<i class="fa-brands fa-raspberry-pi text-xl text-[#C51A4A]"></i>',
+    licheerv: '<i class="fa-brands fa-linux text-xl text-sky-400"></i>',
 };
 
 function parseMem(s) {
@@ -10,6 +11,29 @@ function parseMem(s) {
     const t = parseInt(p[0]) || 0;
     const u = parseInt(p[1]) || 0;
     return { total: t, used: u, percent: t > 0 ? Math.round(u / t * 100) : 0 };
+}
+
+function swapDisplay(s) {
+    if (!s) return '0 MB';
+    const p = s.split(',');
+    const t = parseInt(p[0]) || 0;
+    const u = parseInt(p[1]) || 0;
+    return t > 0 ? u + ' / ' + t + ' MB' : '0 MB';
+}
+
+function blockDevicesHTML(data) {
+    const devs = data.block_devices;
+    if (!devs || devs.length === 0) {
+        return data.storage
+            ? `<div><p class="text-xs text-slate-500 uppercase tracking-wider mb-1">Storage (/)</p><p class="text-sm text-slate-300 font-mono">${data.storage.used} / ${data.storage.size} MB (${data.storage.use_pct})</p></div>`
+            : '';
+    }
+    return devs.map(d => `
+        <div>
+            <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">${d.device} (${d.mount})</p>
+            <p class="text-sm text-slate-300 font-mono">${d.used} / ${d.size} MB (${d.use_pct})</p>
+        </div>
+    `).join('');
 }
 
 function tempDisplay(t) {
@@ -48,9 +72,9 @@ function createNodeCardHTML(nodeId, data) {
                 <div><p class="text-xs text-slate-500 uppercase tracking-wider mb-1">Kernel</p><p class="text-sm text-slate-300 font-mono break-all">${data.kernel || 'N/A'}</p></div>
                 <div class="grid grid-cols-2 gap-4">
                     <div><p class="text-xs text-slate-500 uppercase tracking-wider mb-1">Processes</p><p class="text-sm text-slate-300 font-mono">${data.procs || 'N/A'}</p></div>
-                    <div><p class="text-xs text-slate-500 uppercase tracking-wider mb-1">Swap</p><p class="text-sm text-slate-300 font-mono">${data.swap && data.swap !== '0,0' ? data.swap.split(',')[1] + ' / ' + data.swap.split(',')[0] + ' MB' : '0 MB'}</p></div>
+                    <div><p class="text-xs text-slate-500 uppercase tracking-wider mb-1">Swap</p><p class="text-sm text-slate-300 font-mono node-swap">${swapDisplay(data.swap)}</p></div>
                 </div>
-                ${data.storage ? `<div><p class="text-xs text-slate-500 uppercase tracking-wider mb-1">Storage (/)</p><p class="text-sm text-slate-300 font-mono">${data.storage.used} / ${data.storage.size} (${data.storage.use_pct})</p></div>` : ''}
+                <div class="node-block-devices">${blockDevicesHTML(data)}</div>
             </div>`;
     } else {
         details = '<div class="border-t border-slate-700/50 pt-4 mt-4 flex items-center justify-center py-4"><span class="text-slate-500 italic text-sm">Node unreachable</span></div>';
@@ -154,6 +178,10 @@ function updateNodeCard(nodeId, data) {
         const mp = card.querySelector('.node-mem-pct');
         if (mp) mp.textContent = mem.percent + '%';
     }
+    const sw = card.querySelector('.node-swap');
+    if (sw) sw.textContent = on ? swapDisplay(data.swap) : '0 MB';
+    const bd = card.querySelector('.node-block-devices');
+    if (bd) bd.innerHTML = on ? blockDevicesHTML(data) : '';
     const mb = card.querySelector('.node-mem-bar');
     if (mb) {
         mb.style.width = (on ? mem.percent : 0) + '%';

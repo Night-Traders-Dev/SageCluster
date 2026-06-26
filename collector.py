@@ -36,6 +36,17 @@ def parse_stats_output(out):
             parts = val.split()
             if len(parts) >= 4:
                 data["storage"] = {"size": parts[0], "used": parts[1], "avail": parts[2], "use_pct": parts[3]}
+        elif key == "BLOCK_DEVICES" and val != "none":
+            devices = []
+            for entry in val.split(";"):
+                entry = entry.strip()
+                if not entry:
+                    continue
+                parts = entry.split("|")
+                if len(parts) >= 6:
+                    devices.append({"device": parts[0], "mount": parts[1], "size": parts[2], "used": parts[3], "avail": parts[4], "use_pct": parts[5]})
+            if devices:
+                data["block_devices"] = devices
     return data
 
 def get_local_cpu_usage():
@@ -68,8 +79,9 @@ def collect_remote(user, host):
     return parse_stats_output(out)
 
 def collect_all():
-    with ThreadPoolExecutor(max_workers=3) as ex:
+    with ThreadPoolExecutor(max_workers=4) as ex:
         f_local = ex.submit(collect_local)
         f_p4 = ex.submit(collect_remote, "ubuntu", "10.42.0.141")
         f_p2 = ex.submit(collect_remote, "evelyn", "10.42.1.109")
-        return f_local.result(), f_p4.result(), f_p2.result()
+        f_li = ex.submit(collect_remote, "root", "192.168.254.25")
+        return f_local.result(), f_p4.result(), f_p2.result(), f_li.result()
