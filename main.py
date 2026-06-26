@@ -7,10 +7,12 @@ from fastapi.templating import Jinja2Templates
 
 from config import NODES
 from collector import collect_all
+from file_manager import router as files_router
 
 app = FastAPI(title="SageCluster")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
+app.include_router(files_router)
 
 NODE_IDS = ["orangepi", "pi4", "pi2", "licheerv"]
 
@@ -27,6 +29,7 @@ DEFAULT_SETTINGS = {
     ]},
     "prometheus": {"scrape_interval": 15, "scrape_targets": ["localhost:9090", "localhost:9100", "10.42.0.1:9100", "10.42.1.109:9100", "192.168.254.25:9100"]},
     "wireguard": {"peers": []},
+    "file_manager": {"password": "sagecluster"},
     "nodes": {
         "orangepi": {"host": "localhost", "user": "", "sudo_password": "jdy@123"},
         "pi4": {"host": "10.42.0.141", "user": "ubuntu", "sudo_password": "jdy@123"},
@@ -88,8 +91,9 @@ def get_funnel_status():
         out = subprocess.check_output("tailscale serve status 2>/dev/null || true", shell=True, timeout=5, text=True)
         url = ""
         for line in out.splitlines():
-            if "https://" in line and "ts.net" in line:
-                url = line.strip().split()[0]
+            ls = line.strip()
+            if ls.startswith("https://") and "ts.net" in ls:
+                url = ls.split()[0]
                 break
         return {"status": "active" if url else "inactive", "url": url}
     except Exception:
@@ -99,6 +103,10 @@ def get_funnel_status():
 @app.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
+
+@app.get("/files", response_class=HTMLResponse)
+async def files_page(request: Request):
+    return templates.TemplateResponse("files.html", {"request": request})
 
 
 @app.get("/api/status")

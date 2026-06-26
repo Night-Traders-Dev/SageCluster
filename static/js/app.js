@@ -93,6 +93,8 @@ async function fetchClusterStatus() {
     }
 }
 
+let cfReqHistory = [];
+
 function updateTunnels(t) {
     const cf = t.cloudflare;
     const fn = t.funnel;
@@ -107,6 +109,9 @@ function updateTunnels(t) {
         cfUrl.href = cf.url || '#';
         cfReqs.textContent = cf.total_requests.toLocaleString();
         cfConns.textContent = cf.connections;
+        cfReqHistory.push(cf.total_requests);
+        if (cfReqHistory.length > 100) cfReqHistory.shift();
+        drawCfTraffic();
     }
     const fnDot = document.getElementById('funnel-status-dot');
     const fnUrl = document.getElementById('funnel-url');
@@ -118,6 +123,49 @@ function updateTunnels(t) {
         fnUrl.href = fn.url || '#';
         fnText.innerHTML = 'Status: <span class="text-slate-200 font-mono">' + fn.status + '</span>';
     }
+}
+
+function drawCfTraffic() {
+    const canvas = document.getElementById('cf-traffic-chart');
+    if (!canvas) return;
+    const rect = canvas.parentElement.getBoundingClientRect();
+    canvas.width = rect.width || 300;
+    canvas.height = rect.height || 48;
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width, h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+    if (cfReqHistory.length < 2) {
+        ctx.fillStyle = '#475569';
+        ctx.font = '11px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('Collecting data...', w/2, h/2 + 4);
+        return;
+    }
+    const min = Math.min(...cfReqHistory);
+    const max = Math.max(...cfReqHistory);
+    const range = Math.max(max - min, 1);
+    const pad = 4;
+    const step = (w - pad * 2) / Math.max(cfReqHistory.length - 1, 1);
+    ctx.beginPath();
+    for (let i = 0; i < cfReqHistory.length; i++) {
+        const x = pad + i * step;
+        const y = h - pad - ((cfReqHistory[i] - min) / range) * (h - pad * 2);
+        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = '#10b981';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(16,185,129,0.1)';
+    ctx.lineTo(w - pad, h - pad);
+    ctx.lineTo(pad, h - pad);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '9px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(min.toLocaleString(), pad, h - 2);
+    ctx.textAlign = 'right';
+    ctx.fillText(max.toLocaleString(), w - pad, h - 2);
 }
 
 let activeMenu = null;
