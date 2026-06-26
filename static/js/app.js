@@ -1,6 +1,8 @@
 let nodesRendered = false;
 let fetching = false;
 let prevNet = {};
+let prevNetTx = {};
+let prevDiskRead = {};
 let prevDisk = {};
 let prevTimestamp = 0;
 
