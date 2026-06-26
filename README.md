@@ -1,92 +1,118 @@
 # SageCluster
 
-A real-time cluster dashboard for monitoring and managing multiple Linux nodes — OrangePi, Raspberry Pi 4, Raspberry Pi 2, and LicheeRV Nano — with live graphs, persistent history, service logs, and centralized settings.
+A real-time cluster dashboard and management system for a heterogeneous 4‑node cluster — OrangePi, Raspberry Pi 4, Raspberry Pi 2, and LicheeRV Nano — with live graphs, persistent history, service logs, a web file manager, and centralized settings with remote apply.
 
-## Architecture
+![Dashboard](https://img.shields.io/badge/status-active-success)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi)
+![Python](https://img.shields.io/badge/Python-3.11+-blue)
 
-OrangePi (dashboard) runs FastAPI/uvicorn on :8080 with parallel SSH collection to all nodes. Pi4 hosts NFS, Prometheus, Grafana, WireGuard, and 128GB USB storage. Pi2 runs Pi-hole DNS. LicheeRV runs Buildroot.
-
-Networks: 192.168.254.0/24 (WiFi LAN), 10.42.0.0/24 (Pi4 VLAN), 10.42.1.0/24 (Pi2 VLAN), 10.0.0.0/24 (WireGuard on Pi4 :51820).
-
-## Structure
-
-```
-SageCluster/
-├── main.py              # FastAPI app — status, logs, settings APIs
-├── config.py            # Node IP/user configuration
-├── collector.py         # Parallel SSH stats collection
-├── collect_stats.sh     # Shell script run on each node
-├── settings.json        # Persisted settings (auto-created)
-├── watchdog.sh          # Cluster watchdog daemon
-├── cluster.sh           # Convenience script
-├── templates/
-│   └── index.html       # Dashboard HTML template
-├── static/js/
-│   ├── history.js       # localStorage persistence (500 pts/metric)
-│   ├── nodes.js         # Node card rendering & accordion toggle
-│   ├── charts.js        # Chart.js definitions & overlay management
-│   ├── settings.js      # Settings panel UI
-│   └── app.js           # Main polling, DOM updates, init
-└── README.md
-```
-
-## Run
+## Quick Start
 
 ```bash
-cd SageCluster
+cd ~/SageCluster
+pip install fastapi uvicorn python-multipart
 python3 -m uvicorn main:app --host 0.0.0.0 --port 8080
 ```
 
-Open `http://<ORANGEPI_IP>:8080`
+Open `http://<orange-pi-ip>:8080`
 
-## API Endpoints
+## Services Overview
+
+| Service | Node | Port | Docs |
+|---------|------|------|------|
+| Dashboard (FastAPI) | OrangePi | 8080 | [docs/architecture.md](docs/architecture.md) |
+| Web File Manager | OrangePi | 8080/files | [docs/api.md](docs/api.md) |
+| Pi‑hole DNS | Pi2 | 53 / 80 (admin) | [docs/services.md](docs/services.md) |
+| Prometheus | Pi4 | 9090 | [docs/services.md](docs/services.md) |
+| Grafana | Pi4 | 3000 | [docs/services.md](docs/services.md) |
+| NFS Server | Pi4 | 2049 | [docs/services.md](docs/services.md) |
+| WireGuard VPN | Pi4 | 51820 | [docs/services.md](docs/services.md) |
+| Cross‑compiler | Pi4 | — | [docs/services.md](docs/services.md) |
+| Cloudflare Tunnel | OrangePi | ephemeral | [docs/services.md](docs/services.md) |
+| Tailscale Funnel | OrangePi | https://...ts.net | [docs/services.md](docs/services.md) |
+| Watchdog | OrangePi | — | [docs/services.md](docs/services.md) |
+| DNS forwarder (dnsmasq) | OrangePi | 53 | [docs/services.md](docs/services.md) |
+
+## Architecture
+
+```
+Four SBCs, three subnets, one dashboard.
+
+OrangePi (riscv64, Ubuntu 24.04) ── dashboard + tunnels + watchdog + dnsmasq
+├── Pi4 (arm64, Ubuntu 26.04) ── NFS + Prometheus + Grafana + WireGuard + cross-compiler
+├── Pi2 (armv7l, Raspbian 13) ── Pi-hole DNS
+└── LicheeRV (riscv64, Buildroot) ── low-power edge node
+```
+
+→ See [docs/architecture.md](docs/architecture.md) for network layout, subnets, and data flow.
+
+## API
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/status` | GET | Cluster + per-node status |
-| `/api/logs/{component}` | GET | Logs for watchdog, pihole, nfs, prometheus, grafana, wireguard |
-| `/api/settings` | GET | Current settings JSON |
-| `/api/settings` | PUT | Update settings |
-| `/api/apply` | POST | Apply settings to remote services |
-| `/api/prometheus-metrics` | GET | Prometheus-formatted metrics |
+| `/api/status` | GET | Cluster + per‑node + tunnel status |
+| `/api/logs/{component}` | GET | Logs for 8 components |
+| `/api/settings` | GET/PUT | Read/write settings.json |
+| `/api/apply` | POST | Push config to remote services |
+| `/api/prometheus-metrics` | GET | Prometheus‑formatted metrics |
+| `/api/files/login` | POST | File manager authentication |
+| `/api/files/list` | POST | List directory contents |
+| `/api/files/mkdir` | POST | Create directory |
+| `/api/files/rename` | POST | Rename file or folder |
+| `/api/files/delete` | POST | Delete files or folders |
+| `/api/files/upload` | POST | Upload files (multipart) |
+| `/api/files/download` | GET | Download a file |
+| `/api/files/compress` | POST | Create tar.gz/tar.xz/zip |
+| `/api/files/extract` | POST | Extract archive |
+
+→ See [docs/api.md](docs/api.md) for full API reference.
 
 ## Dashboard Features
 
-### Cluster Overview
-CPU cores, total/used memory, swap usage, memory bar.
+- **Cluster Overview** — CPU cores, memory, swap, aggregated across all nodes
+- **Node Cards** — Architecture, CPU, memory bar with expandable details (OS, uptime, temp, load, kernel, processes, block devices)
+- **Tunnel Cards** — Live Cloudflare and Tailscale Funnel URLs with status and traffic sparkline
+- **10 Chart Metrics** — Memory, CPU %, Temperature, Load, Network RX/TX, Disk Read/Write, Swap, Per‑Node Memory
+- **8 Log Sources** — Watchdog, Pi‑hole, NFS, Prometheus, Grafana, WireGuard, Cloudflare, Tailscale Funnel
+- **Settings Panel** — Dashboard, watchdog, Pi‑hole DNS, NFS exports, Prometheus scrape targets, WireGuard peers, node SSH config
+- **File Manager** — Browse, upload, download, create, rename, delete, compress, extract at `/files`
 
-### Node Cards
-Architecture, CPU cores, memory bar — expand for OS, uptime, CPU model, temp, load, kernel, processes, swap, block devices.
+## Project Structure
 
-### Graph/Log Overlays (bottom nav)
-- **Charts**: Memory, CPU %, Temp, Load, Network RX/TX, Disk I/O Read/Write, Swap, Per-Node Memory
-- **Logs**: Watchdog, Pi-hole, NFS, Prometheus, Grafana, WireGuard status
-- Auto-refresh: status every 5s, logs every 30s
-- Persistent history: 500 points per metric via localStorage
+```
+SageCluster/
+├── main.py               # FastAPI app — all API endpoints
+├── config.py             # Node IP/user definitions
+├── collector.py          # Parallel SSH stats collection
+├── collect_stats.sh      # Shell script run on each node
+├── file_manager.py       # File management API
+├── settings.json         # Persisted configuration
+├── watchdog.sh           # Cluster watchdog daemon
+├── templates/
+│   ├── index.html        # Dashboard HTML
+│   └── files.html        # File manager HTML
+├── static/js/
+│   ├── app.js            # Main polling, DOM updates, tunnel charts
+│   ├── charts.js         # Chart.js definitions & overlay management
+│   ├── nodes.js          # Node card rendering & accordion toggle
+│   ├── history.js        # localStorage persistence (500 pts/metric)
+│   ├── settings.js       # Settings panel UI
+│   └── files.js          # File manager UI
+├── docs/
+│   ├── architecture.md   # Network layout, subnets, data flow
+│   ├── services.md       # All services described
+│   ├── api.md            # Full API reference
+│   └── deployment.md     # Install, run, update, file reference
+└── README.md
+```
 
-### Settings Panel (gear icon in header)
-- **Dashboard**: poll interval, history retention
-- **Watchdog**: enable/disable, check interval, RAM threshold, node selection
-- **Pi-hole DNS**: upstream DNS 1 & 2
-- **NFS Exports**: add/remove export paths with network ACLs
-- **Prometheus**: scrape interval, scrape targets
-- **WireGuard Peers**: add/remove peers
-- **Node SSH**: host, user, sudo password per node
+## Public Access
 
-Save writes to settings.json; Apply pushes config to remote services (restarts Prometheus, NFS, WireGuard, regenerates watchdog, updates Pi-hole DNS).
+Two tunnels expose the dashboard without opening firewall ports:
 
-## Services
+| Tunnel | URL | Persistent |
+|--------|-----|------------|
+| **Cloudflare** | `*.trycloudflare.com` (random) | No — URL changes on restart |
+| **Tailscale Funnel** | `https://orangepirv2.tailcad549.ts.net` | Yes |
 
-### Pi4 (10.42.0.141)
-- **NFS**: `/mnt/storage/{backup,crossbuild}` exported to both subnets
-- **Prometheus**: scrapes all 4 nodes on port 9100 + dashboard metrics endpoint
-- **Grafana**: Prometheus datasource configured, admin/admin
-- **WireGuard**: wg0 on 10.0.0.1/24, port 51820
-- **Storage**: 128GB USB at `/mnt/storage`
-
-### Pi2 (10.42.1.109)
-- **Pi-hole**: DNS filtering, upstream 1.1.1.1/8.8.8.8
-
-### LicheeRV (192.168.254.25)
-- Buildroot with limited Busybox tools
-- 109GB rootfs, 8GB swap partition
+→ See [docs/services.md](docs/services.md) for tunnel details.
