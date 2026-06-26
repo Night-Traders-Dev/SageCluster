@@ -23,10 +23,15 @@
         .graph-overlay.open { display: flex; }
         .settings-panel { display: none; position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); align-items: center; justify-content: center; padding: 1rem; }
         .settings-panel.open { display: flex; }
-        .nav-btn { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 12px; border-radius: 8px; color: #64748b; transition: all 0.2s; font-size: 10px; min-width: 56px; background: transparent; border: none; cursor: pointer; }
-        .nav-btn:hover { color: #cbd5e1; background: rgba(255,255,255,0.05); }
-        .nav-btn.active { color: #10b981; background: rgba(16,185,129,0.1); }
-        .nav-btn i { font-size: 20px; }
+        .nav-btn { display: flex; align-items: center; gap: 6px; padding: 8px 18px; border-radius: 10px; color: #94a3b8; transition: all 0.2s; font-size: 13px; background: transparent; border: none; cursor: pointer; white-space: nowrap; }
+        .nav-btn:hover { color: #e2e8f0; background: rgba(255,255,255,0.06); }
+        .nav-btn.active { color: #10b981; background: rgba(16,185,129,0.12); }
+        .nav-btn i { font-size: 18px; }
+        .nav-menu { display: none; position: fixed; bottom: 64px; z-index: 45; background: #1e293b; border: 1px solid #334155; border-radius: 14px; padding: 8px; box-shadow: 0 -8px 30px rgba(0,0,0,0.5); min-width: 200px; }
+        .nav-menu.open { display: block; }
+        .nav-menu-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 8px; color: #cbd5e1; font-size: 13px; background: transparent; border: none; cursor: pointer; width: 100%; text-align: left; transition: all 0.15s; }
+        .nav-menu-item:hover { background: rgba(255,255,255,0.06); color: white; }
+        .nav-menu-item i { font-size: 18px; }
         .spinner { width: 20px; height: 20px; border: 2px solid #334155; border-top-color: #10b981; border-radius: 50%; animation: spin 0.8s linear infinite; display: inline-block; }
         @keyframes spin { to { transform: rotate(360deg); } }
         input, select, textarea { background: #1e293b; border: 1px solid #334155; color: #e2e8f0; border-radius: 8px; padding: 8px 12px; font-size: 13px; width: 100%; }
@@ -46,7 +51,7 @@
         .toast.show { display: block; }
     </style>
 </head>
-<body class="bg-slate-900 text-slate-300 font-sans min-h-screen flex flex-col" style="padding-bottom:72px">
+<body class="bg-slate-900 text-slate-300 font-sans min-h-screen flex flex-col" style="padding-bottom:70px">
 
     <div id="toast" class="toast"></div>
 
@@ -114,25 +119,33 @@
     </main>
 
     <nav class="fixed bottom-0 left-0 right-0 z-40 backdrop-blur border-t border-slate-700/50" style="background:#0f172ae8">
-        <div class="max-w-4xl mx-auto flex items-center justify-center gap-1 px-2 py-2 overflow-x-auto">
-            <button class="nav-btn active" data-metric="memory"><i class="ph ph-chart-line-up"></i><span>Memory</span></button>
-            <button class="nav-btn" data-metric="cpu"><i class="ph ph-cpu"></i><span>CPU %</span></button>
-            <button class="nav-btn" data-metric="temp"><i class="ph ph-thermometer"></i><span>Temp</span></button>
-            <button class="nav-btn" data-metric="load"><i class="ph ph-chart-bar"></i><span>Load</span></button>
-            <button class="nav-btn" data-metric="network"><i class="ph ph-wifi-high"></i><span>Net RX</span></button>
-            <button class="nav-btn" data-metric="network_tx"><i class="ph ph-wifi-high" style="color:#f472b6"></i><span>Net TX</span></button>
-            <button class="nav-btn" data-metric="disk"><i class="ph ph-hard-drives"></i><span>Disk Wr</span></button>
-            <button class="nav-btn" data-metric="disk_read"><i class="ph ph-hard-drives" style="color:#34d399"></i><span>Disk Rd</span></button>
-            <button class="nav-btn" data-metric="swap"><i class="ph ph-swap"></i><span>Swap</span></button>
-            <button class="nav-btn" data-metric="per_node_mem"><i class="ph ph-memory"></i><span>Node Mem</span></button>
-            <button class="nav-btn" data-metric="watchdog" style="color:#38bdf8"><i class="ph ph-shield-check"></i><span>Watchdog</span></button>
-            <button class="nav-btn" data-metric="pihole" style="color:#f59e0b"><i class="ph ph-eye-slash"></i><span>Pi-hole</span></button>
-            <button class="nav-btn" data-metric="nfs" style="color:#10b981"><i class="ph ph-folder"></i><span>NFS</span></button>
-            <button class="nav-btn" data-metric="prometheus" style="color:#e74c3c"><i class="ph ph-chart-bar"></i><span>Prom</span></button>
-            <button class="nav-btn" data-metric="grafana" style="color:#f39c12"><i class="ph ph-graph"></i><span>Grafana</span></button>
-            <button class="nav-btn" data-metric="wireguard" style="color:#3498db"><i class="ph ph-shield"></i><span>WG</span></button>
+        <div class="max-w-lg mx-auto flex items-center justify-center gap-6 px-4 py-3">
+            <button class="nav-btn active" id="menu-charts" onclick="toggleMenu('charts')"><i class="ph ph-chart-line-up"></i><span>Charts</span> <i class="ph ph-caret-up" style="font-size:12px;opacity:0.5"></i></button>
+            <button class="nav-btn" id="menu-logs" onclick="toggleMenu('logs')"><i class="ph ph-list"></i><span>Logs</span> <i class="ph ph-caret-up" style="font-size:12px;opacity:0.5"></i></button>
         </div>
     </nav>
+
+    <div id="menu-charts-panel" class="nav-menu" style="left:50%;transform:translateX(-50%);max-width:360px">
+        <button class="nav-menu-item" data-metric="memory"><i class="ph ph-chart-line-up" style="color:#10b981"></i> Memory Usage</button>
+        <button class="nav-menu-item" data-metric="cpu"><i class="ph ph-cpu" style="color:#3b82f6"></i> CPU Usage</button>
+        <button class="nav-menu-item" data-metric="temp"><i class="ph ph-thermometer" style="color:#ef4444"></i> CPU Temp</button>
+        <button class="nav-menu-item" data-metric="load"><i class="ph ph-chart-bar" style="color:#f59e0b"></i> Load Average</button>
+        <button class="nav-menu-item" data-metric="network"><i class="ph ph-wifi-high" style="color:#8b5cf6"></i> Network RX</button>
+        <button class="nav-menu-item" data-metric="network_tx"><i class="ph ph-wifi-high" style="color:#f472b6"></i> Network TX</button>
+        <button class="nav-menu-item" data-metric="disk"><i class="ph ph-hard-drives" style="color:#ec4899"></i> Disk Writes</button>
+        <button class="nav-menu-item" data-metric="disk_read"><i class="ph ph-hard-drives" style="color:#34d399"></i> Disk Reads</button>
+        <button class="nav-menu-item" data-metric="swap"><i class="ph ph-swap" style="color:#14b8a6"></i> Swap Usage</button>
+        <button class="nav-menu-item" data-metric="per_node_mem"><i class="ph ph-memory" style="color:#10b981"></i> Per-Node Memory</button>
+    </div>
+
+    <div id="menu-logs-panel" class="nav-menu" style="left:50%;transform:translateX(-50%);max-width:280px">
+        <button class="nav-menu-item" data-metric="watchdog"><i class="ph ph-shield-check" style="color:#38bdf8"></i> Watchdog</button>
+        <button class="nav-menu-item" data-metric="pihole"><i class="ph ph-eye-slash" style="color:#f59e0b"></i> Pi-hole</button>
+        <button class="nav-menu-item" data-metric="nfs"><i class="ph ph-folder" style="color:#10b981"></i> NFS Server</button>
+        <button class="nav-menu-item" data-metric="prometheus"><i class="ph ph-chart-bar" style="color:#e74c3c"></i> Prometheus</button>
+        <button class="nav-menu-item" data-metric="grafana"><i class="ph ph-graph" style="color:#f39c12"></i> Grafana</button>
+        <button class="nav-menu-item" data-metric="wireguard"><i class="ph ph-shield" style="color:#3498db"></i> WireGuard</button>
+    </div>
 
     <div id="graph-overlay" class="graph-overlay" onclick="closeOverlay()">
         <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-2xl w-full max-w-3xl p-6" onclick="event.stopPropagation()">

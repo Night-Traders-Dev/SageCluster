@@ -88,9 +88,41 @@ async function fetchClusterStatus() {
     }
 }
 
+let activeMenu = null;
+
+function toggleMenu(name) {
+    const panel = document.getElementById('menu-' + name + '-panel');
+    const btn = document.getElementById('menu-' + name);
+    if (!panel || !btn) return;
+    if (activeMenu === name) {
+        panel.classList.remove('open');
+        btn.classList.remove('active');
+        activeMenu = null;
+        return;
+    }
+    document.querySelectorAll('.nav-menu').forEach(m => m.classList.remove('open'));
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+    panel.classList.add('open');
+    btn.classList.add('active');
+    activeMenu = name;
+}
+
+document.addEventListener('click', (e) => {
+    if (activeMenu && !e.target.closest('.nav-menu') && !e.target.closest('.nav-btn')) {
+        document.querySelectorAll('.nav-menu').forEach(m => m.classList.remove('open'));
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+        activeMenu = null;
+    }
+});
+
 function init() {
-    document.querySelectorAll('.nav-btn').forEach(btn => {
-        btn.addEventListener('click', () => openOverlay(btn.dataset.metric));
+    document.querySelectorAll('.nav-menu-item').forEach(btn => {
+        btn.addEventListener('click', () => {
+            openOverlay(btn.dataset.metric);
+            document.querySelectorAll('.nav-menu').forEach(m => m.classList.remove('open'));
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            activeMenu = null;
+        });
     });
     document.getElementById('mem-card').addEventListener('click', () => openOverlay('memory'));
     document.getElementById('graph-overlay').addEventListener('click', closeOverlay);
