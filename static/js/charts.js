@@ -57,6 +57,8 @@ const LOG_METRICS = {
     prometheus: { title: 'Prometheus Log (Pi4)', icon: 'ph-chart-bar', color: '#e74c3c', api: '/api/logs/prometheus', refresh: 30000 },
     grafana: { title: 'Grafana Log (Pi4)', icon: 'ph-graph', color: '#f39c12', api: '/api/logs/grafana', refresh: 30000 },
     wireguard: { title: 'WireGuard Status (Pi4)', icon: 'ph-shield', color: '#3498db', api: '/api/logs/wireguard', refresh: 30000 },
+    cloudflared: { title: 'Cloudflare Tunnel Log', icon: 'ph-cloud', color: '#f97316', api: '/api/logs/cloudflared', refresh: 30000 },
+    funnel: { title: 'Tailscale Funnel Status', icon: 'ph-share-network', color: '#818cf8', api: '/api/logs/funnel', refresh: 30000 },
 };
 
 function openOverlay(metric) {

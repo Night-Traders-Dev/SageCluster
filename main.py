@@ -62,6 +62,40 @@ def write_remote(host, user, remote_path, content):
         return False
 
 
+CLOUDFLARE_METRICS_URL = "http://127.0.0.1:44187/metrics"
+
+def get_cloudflared_status():
+    try:
+        r = subprocess.check_output(
+            f"curl -sf {CLOUDFLARE_METRICS_URL} 2>/dev/null || true",
+            shell=True, timeout=5, text=True
+        )
+        total_reqs = 0; ha_conns = 0; url = ""
+        for line in r.splitlines():
+            if line.startswith("cloudflared_tunnel_total_requests"):
+                total_reqs = int(float(line.split()[-1]))
+            elif line.startswith("cloudflared_tunnel_ha_connections"):
+                ha_conns = int(float(line.split()[-1]))
+            elif line.startswith("cloudflared_tunnel_user_hostnames_counts"):
+                url = line.split("{")[1].split("}")[0].split("=")[1].strip('"')
+        return {"status": "connected" if ha_conns > 0 else "disconnected", "url": url, "total_requests": total_reqs, "connections": ha_conns}
+    except Exception:
+        return {"status": "stopped", "url": "", "total_requests": 0, "connections": 0}
+
+
+def get_funnel_status():
+    try:
+        out = subprocess.check_output("tailscale serve status 2>/dev/null || true", shell=True, timeout=5, text=True)
+        url = ""
+        for line in out.splitlines():
+            if "https://" in line and "ts.net" in line:
+                url = line.strip().split()[0]
+                break
+        return {"status": "active" if url else "inactive", "url": url}
+    except Exception:
+        return {"status": "inactive", "url": ""}
+
+
 @app.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
@@ -96,7 +130,12 @@ async def status():
             "total_cpu": total_cpu, "total_mem_mb": total_mem, "used_mem_mb": used_mem,
             "swap_total_mb": swap_total, "swap_used_mb": swap_used,
         },
-        "nodes": nodes, "timestamp": time.time(),
+        "nodes": nodes,
+        "tunnels": {
+            "cloudflare": get_cloudflared_status(),
+            "funnel": get_funnel_status(),
+        },
+        "timestamp": time.time(),
     })
 
 
@@ -116,6 +155,15 @@ async def component_log(component: str):
             return JSONResponse({"log": "".join(lines[-100:])})
         except FileNotFoundError:
             return JSONResponse({"log": "Watchdog not started yet."})
+    if component == "cloudflared":
+        try:
+            out = subprocess.check_output("journalctl -u cloudflared-tunnel --no-pager -n 100 2>/dev/null || echo 'No logs'", shell=True, timeout=5, text=True)
+            return JSONResponse({"log": out.strip()})
+        except Exception:
+            return JSONResponse({"log": "Cloudflare Tunnel log unavailable."})
+    if component == "funnel":
+        out = run_ssh("tailscale serve status 2>/dev/null; echo '---'; tailscale status 2>/dev/null")
+        return JSONResponse({"log": out or "Funnel log unavailable."})
     cmd = cmds.get(component)
     if not cmd:
         return JSONResponse({"log": "Unknown component."})

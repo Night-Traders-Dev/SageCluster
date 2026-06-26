@@ -116,6 +116,37 @@
             <h2 class="text-sm uppercase tracking-wider text-slate-400 font-semibold mb-4">Node Status</h2>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6" id="nodes-container"></div>
         </div>
+
+        <div>
+            <h2 class="text-sm uppercase tracking-wider text-slate-400 font-semibold mb-4">Tunnel Access</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6" id="tunnels-container">
+                <div class="bg-slate-800 rounded-xl p-5 border border-slate-700/50 shadow-lg">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-8 h-8 rounded-full bg-orange-500/10 flex items-center justify-center"><i class="ph ph-cloud text-lg text-orange-400"></i></div>
+                            <h3 class="text-sm font-semibold text-white">Cloudflare Tunnel</h3>
+                        </div>
+                        <span id="cf-status-dot" class="w-2.5 h-2.5 rounded-full bg-slate-600"></span>
+                    </div>
+                    <a id="cf-url" href="#" target="_blank" class="text-xs text-sky-400 hover:text-sky-300 break-all font-mono block mb-2">Loading...</a>
+                    <div class="flex items-center justify-between text-xs text-slate-400">
+                        <span>Requests: <span id="cf-requests" class="text-slate-200 font-mono">0</span></span>
+                        <span>Connections: <span id="cf-connections" class="text-slate-200 font-mono">0</span></span>
+                    </div>
+                </div>
+                <div class="bg-slate-800 rounded-xl p-5 border border-slate-700/50 shadow-lg">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-8 h-8 rounded-full bg-indigo-500/10 flex items-center justify-center"><i class="ph ph-share-network text-lg text-indigo-400"></i></div>
+                            <h3 class="text-sm font-semibold text-white">Tailscale Funnel</h3>
+                        </div>
+                        <span id="funnel-status-dot" class="w-2.5 h-2.5 rounded-full bg-slate-600"></span>
+                    </div>
+                    <a id="funnel-url" href="#" target="_blank" class="text-xs text-sky-400 hover:text-sky-300 break-all font-mono block mb-2">Loading...</a>
+                    <p id="funnel-status-text" class="text-xs text-slate-400">Status: <span class="text-slate-200 font-mono">checking...</span></p>
+                </div>
+            </div>
+        </div>
     </main>
 
     <nav class="fixed bottom-0 left-0 right-0 z-40 backdrop-blur border-t border-slate-700/50" style="background:#0f172ae8">
@@ -138,13 +169,15 @@
         <button class="nav-menu-item" data-metric="per_node_mem"><i class="ph ph-memory" style="color:#10b981"></i> Per-Node Memory</button>
     </div>
 
-    <div id="menu-logs-panel" class="nav-menu" style="left:50%;transform:translateX(-50%);max-width:280px">
+    <div id="menu-logs-panel" class="nav-menu" style="left:50%;transform:translateX(-50%);max-width:320px">
         <button class="nav-menu-item" data-metric="watchdog"><i class="ph ph-shield-check" style="color:#38bdf8"></i> Watchdog</button>
         <button class="nav-menu-item" data-metric="pihole"><i class="ph ph-eye-slash" style="color:#f59e0b"></i> Pi-hole</button>
         <button class="nav-menu-item" data-metric="nfs"><i class="ph ph-folder" style="color:#10b981"></i> NFS Server</button>
         <button class="nav-menu-item" data-metric="prometheus"><i class="ph ph-chart-bar" style="color:#e74c3c"></i> Prometheus</button>
         <button class="nav-menu-item" data-metric="grafana"><i class="ph ph-graph" style="color:#f39c12"></i> Grafana</button>
         <button class="nav-menu-item" data-metric="wireguard"><i class="ph ph-shield" style="color:#3498db"></i> WireGuard</button>
+        <button class="nav-menu-item" data-metric="cloudflared"><i class="ph ph-cloud" style="color:#f97316"></i> Cloudflare Tunnel</button>
+        <button class="nav-menu-item" data-metric="funnel"><i class="ph ph-share-network" style="color:#818cf8"></i> Tailscale Funnel</button>
     </div>
 
     <div id="graph-overlay" class="graph-overlay" onclick="closeOverlay()">
@@ -187,10 +220,10 @@
         </div>
     </div>
 
-    <script src="/static/js/history.js?v=2"></script>
-    <script src="/static/js/nodes.js?v=2"></script>
-    <script src="/static/js/charts.js?v=2"></script>
-    <script src="/static/js/settings.js?v=2"></script>
-    <script src="/static/js/app.js?v=2"></script>
+    <script src="/static/js/history.js?v=3"></script>
+    <script src="/static/js/nodes.js?v=3"></script>
+    <script src="/static/js/charts.js?v=3"></script>
+    <script src="/static/js/settings.js?v=3"></script>
+    <script src="/static/js/app.js?v=3"></script>
 </body>
 </html>

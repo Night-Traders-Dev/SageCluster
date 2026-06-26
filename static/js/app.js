@@ -80,6 +80,9 @@ async function fetchClusterStatus() {
         } else {
             for (const [id, nd] of Object.entries(d.nodes)) updateNodeCard(id, nd);
         }
+
+        const tunnels = d.tunnels;
+        if (tunnels) updateTunnels(tunnels);
     } catch (e) {
         console.error('fetch error:', e);
         document.getElementById('last-updated').textContent = 'Connection lost. Retrying...';
@@ -87,6 +90,33 @@ async function fetchClusterStatus() {
         document.getElementById('loading-spinner').style.display = 'none';
     } finally {
         fetching = false;
+    }
+}
+
+function updateTunnels(t) {
+    const cf = t.cloudflare;
+    const fn = t.funnel;
+    const cfDot = document.getElementById('cf-status-dot');
+    const cfUrl = document.getElementById('cf-url');
+    const cfReqs = document.getElementById('cf-requests');
+    const cfConns = document.getElementById('cf-connections');
+    if (cf) {
+        const on = cf.status === 'connected';
+        cfDot.className = 'w-2.5 h-2.5 rounded-full ' + (on ? 'bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.5)]' : 'bg-red-500');
+        cfUrl.textContent = cf.url || 'Not connected';
+        cfUrl.href = cf.url || '#';
+        cfReqs.textContent = cf.total_requests.toLocaleString();
+        cfConns.textContent = cf.connections;
+    }
+    const fnDot = document.getElementById('funnel-status-dot');
+    const fnUrl = document.getElementById('funnel-url');
+    const fnText = document.getElementById('funnel-status-text');
+    if (fn) {
+        const on = fn.status === 'active';
+        fnDot.className = 'w-2.5 h-2.5 rounded-full ' + (on ? 'bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.5)]' : 'bg-red-500');
+        fnUrl.textContent = fn.url || 'Not active';
+        fnUrl.href = fn.url || '#';
+        fnText.innerHTML = 'Status: <span class="text-slate-200 font-mono">' + fn.status + '</span>';
     }
 }
 
